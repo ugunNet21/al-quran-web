@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Al-Qur'an Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            margin: 20px auto;
+            width: 80%;
+        }
+        .surah-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .surah-list li {
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+        }
+        .surah-list li:hover {
+            background-color: #e9e9e9;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .ayah {
+            margin: 10px 0;
+        }
+        .tafsir {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Al-Qur'an Viewer</h1>
+        <ul class="surah-list" id="surahList"></ul>
+    </div>
+
+    <div id="surahModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2 id="surahName"></h2>
+            <p id="surahInfo"></p>
+            <h3>Ayat</h3>
+            <div id="ayatList"></div>
+            <h3>Tafsir</h3>
+            <div id="tafsirList"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const surahList = document.getElementById('surahList');
+            const surahModal = document.getElementById('surahModal');
+            const closeModal = document.getElementById('closeModal');
+            const surahName = document.getElementById('surahName');
+            const surahInfo = document.getElementById('surahInfo');
+            const ayatList = document.getElementById('ayatList');
+            const tafsirList = document.getElementById('tafsirList');
+
+            fetch('https://equran.id/api/v2/surat')
+                .then(response => response.json())
+                .then(data => {
+                    data.data.forEach(surah => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = `${surah.nomor}. ${surah.namaLatin}`;
+                        listItem.addEventListener('click', () => {
+                            showSurahDetail(surah.nomor);
+                        });
+                        surahList.appendChild(listItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching surah list:', error));
+
+            closeModal.addEventListener('click', () => {
+                surahModal.style.display = 'none';
+            });
+
+            window.onclick = function(event) {
+                if (event.target == surahModal) {
+                    surahModal.style.display = 'none';
+                }
+            }
+
+            function showSurahDetail(surahNumber) {
+                fetch(`https://equran.id/api/v2/surat/${surahNumber}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const surah = data.data;
+                        surahName.textContent = `${surah.nomor}. ${surah.namaLatin} (${surah.nama})`;
+                        surahInfo.innerHTML = `
+                            <p><strong>Jumlah Ayat:</strong> ${surah.jumlahAyat}</p>
+                            <p><strong>Tempat Turun:</strong> ${surah.tempatTurun}</p>
+                            <p><strong>Arti:</strong> ${surah.arti}</p>
+                            <p><strong>Deskripsi:</strong> ${surah.deskripsi}</p>
+                        `;
+                        ayatList.innerHTML = '';
+                        surah.ayat.forEach(ayat => {
+                            const ayatItem = document.createElement('div');
+                            ayatItem.classList.add('ayah');
+                            ayatItem.innerHTML = `
+                                <p><strong>Ayat ${ayat.nomorAyat}:</strong></p>
+                                <p>${ayat.teksArab}</p>
+                                <p>${ayat.teksLatin}</p>
+                                <p>${ayat.teksIndonesia}</p>
+                            `;
+                            ayatList.appendChild(ayatItem);
+                        });
+                        fetch(`https://equran.id/api/v2/tafsir/${surahNumber}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                tafsirList.innerHTML = '';
+                                data.data.tafsir.forEach(tafsir => {
+                                    const tafsirItem = document.createElement('div');
+                                    tafsirItem.classList.add('tafsir');
+                                    tafsirItem.innerHTML = `
+                                        <p><strong>Ayat ${tafsir.ayat}:</strong></p>
+                                        <p>${tafsir.teks}</p>
+                                    `;
+                                    tafsirList.appendChild(tafsirItem);
+                                });
+                            })
+                            .catch(error => console.error('Error fetching tafsir:', error));
+                        surahModal.style.display = 'block';
+                    })
+                    .catch(error => console.error('Error fetching surah detail:', error));
+            }
+        });
+    </script>
+</body>
+</html>
