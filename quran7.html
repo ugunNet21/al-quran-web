@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Al-Qur'an Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrQdSmqhxUE3DhzeG5c6ljN9WZkpl9UQ/lH5RCmUjI5ZtS4jUJXx37BFxjffKioSyKjD1Fk8kgoykWAKCw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @font-face {
+            font-family: 'Uthmani';
+            src: url('https://fonts.qurancomplex.gov.sa/wp-content/uploads/2021/02/UthmanicHafs1Ver09.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .justify-text {
+            text-align: justify;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .ayat-number {
+            font-family: 'Scheherazade New', serif;
+            font-size: 1.5em;
+        }
+        .ayat-arab {
+            font-family: 'Uthmani', serif;
+            font-size: 1.5em;
+            line-height: 2em;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold text-center mb-4">Al-Qur'an Viewer</h1>
+        <div class="flex justify-center items-center mb-4 space-x-4">
+            <div class="relative">
+                <select id="surahSelect" class="p-2 border border-gray-300 rounded-md">
+                    <option value="" selected>Pilih Surah</option>
+                </select>
+                <select id="ayatSelect" class="p-2 border border-gray-300 rounded-md">
+                    <option value="" selected>Pilih Ayat</option>
+                </select>
+                <button id="goToAyat" class="p-2 bg-blue-500 text-white rounded-md ml-2"><i class="fas fa-arrow-right"></i></button>
+            </div>
+            <div class="relative w-2/3">
+                <input type="text" id="searchInput" class="w-full p-2 border border-gray-300 rounded-md pl-10" placeholder="Cari Surah atau Ayat...">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+        </div>
+        <ul class="surah-list space-y-2" id="surahList"></ul>
+    </div>
+
+    <div id="surahModal" class="modal">
+        <div class="modal-content rounded-lg shadow-lg">
+            <span class="close" id="closeModal">&times;</span>
+            <h2 id="surahName" class="text-xl font-bold mb-2"></h2>
+            <p id="surahInfo" class="mb-4 justify-text"></p>
+            <h3 class="text-lg font-semibold mb-2">Ayat</h3>
+            <div id="ayatList" class="mb-4"></div>
+            <h3 class="text-lg font-semibold mb-2">Tafsir</h3>
+            <div id="tafsirList"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const surahList = document.getElementById('surahList');
+            const surahModal = document.getElementById('surahModal');
+            const closeModal = document.getElementById('closeModal');
+            const surahName = document.getElementById('surahName');
+            const surahInfo = document.getElementById('surahInfo');
+            const ayatList = document.getElementById('ayatList');
+            const tafsirList = document.getElementById('tafsirList');
+            const searchInput = document.getElementById('searchInput');
+            const surahSelect = document.getElementById('surahSelect');
+            const ayatSelect = document.getElementById('ayatSelect');
+            const goToAyat = document.getElementById('goToAyat');
+
+            let allSurahs = [];
+
+            fetch('https://equran.id/api/v2/surat')
+                .then(response => response.json())
+                .then(data => {
+                    allSurahs = data.data;
+                    displaySurahs(allSurahs);
+                    populateSurahDropdown(allSurahs);
+                })
+                .catch(error => console.error('Error fetching surah list:', error));
+
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase();
+                const filteredSurahs = allSurahs.filter(surah => 
+                    surah.namaLatin.toLowerCase().includes(query) || 
+                    surah.nama.toLowerCase().includes(query) || 
+                    surah.nomor.toString().includes(query)
+                );
+                displaySurahs(filteredSurahs);
+            });
+
+            surahSelect.addEventListener('change', () => {
+                const surahNumber = surahSelect.value;
+                if (surahNumber) {
+                    fetch(`https://equran.id/api/v2/surat/${surahNumber}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const surah = data.data;
+                            populateAyatDropdown(surah.jumlahAyat);
+                        })
+                        .catch(error => console.error('Error fetching surah detail:', error));
+                } else {
+                    ayatSelect.innerHTML = '<option value="" selected>Pilih Ayat</option>';
+                }
+            });
+
+            goToAyat.addEventListener('click', () => {
+                const surahNumber = surahSelect.value;
+                const ayatNumber = ayatSelect.value;
+                if (surahNumber && ayatNumber) {
+                    showSurahDetail(surahNumber, ayatNumber);
+                }
+            });
+
+            closeModal.addEventListener('click', () => {
+                surahModal.style.display = 'none';
+            });
+
+            window.onclick = function(event) {
+                if (event.target == surahModal) {
+                    surahModal.style.display = 'none';
+                }
+            }
+
+            function displaySurahs(surahs) {
+                surahList.innerHTML = '';
+                surahs.forEach(surah => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('cursor-pointer', 'p-4', 'bg-white', 'rounded-lg', 'shadow', 'hover:bg-gray-200');
+                    listItem.innerHTML = `<i class="fas fa-book-open mr-2"></i> ${surah.nomor}. ${surah.namaLatin}`;
+                    listItem.addEventListener('click', () => {
+                        showSurahDetail(surah.nomor);
+                    });
+                    surahList.appendChild(listItem);
+                });
+            }
+
+            function populateSurahDropdown(surahs) {
+                surahSelect.innerHTML = '<option value="" selected>Pilih Surah</option>';
+                surahs.forEach(surah => {
+                    const option = document.createElement('option');
+                    option.value = surah.nomor;
+                    option.textContent = `${surah.nomor}. ${surah.namaLatin}`;
+                    surahSelect.appendChild(option);
+                });
+            }
+
+            function populateAyatDropdown(jumlahAyat) {
+                ayatSelect.innerHTML = '<option value="" selected>Pilih Ayat</option>';
+                for (let i = 1; i <= jumlahAyat; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `Ayat ${i}`;
+                    ayatSelect.appendChild(option);
+                }
+            }
+
+            function showSurahDetail(surahNumber, ayatNumber = null) {
+                fetch(`https://equran.id/api/v2/surat/${surahNumber}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const surah = data.data;
+                        surahName.textContent = `${surah.namaLatin} (${surah.nama})`;
+                        surahName.textContent = `${surah.nomor}. ${surah.namaLatin} (${surah.nama})`;
+                        surahInfo.textContent = surah.deskripsi.replace(/<\/?[^>]+(>|$)/g, ""); // Remove HTML tags
+                        surahInfo.innerHTML = `
+                            <p><strong>Jumlah Ayat:</strong> ${surah.jumlahAyat}</p>
+                            <p><strong>Tempat Turun:</strong> ${surah.tempatTurun}</p>
+                            <p><strong>Arti:</strong> ${surah.arti}</p>
+                            <p class="justify-text"><strong>Deskripsi:</strong> ${surah.deskripsi}</p>
+                        `;
+                        ayatList.innerHTML = '';
+                        surah.ayat.forEach(ayat => {
+                            if (!ayatNumber || ayat.nomorAyat == ayatNumber) {
+                                const ayatItem = document.createElement('div');
+                                ayatItem.classList.add('ayah', 'mb-4', 'p-2', 'bg-gray-100', 'rounded-lg');
+                                ayatItem.innerHTML = `
+                                    <p class="ayat-number"><strong>Ayat ${ayat.nomorAyat}:</strong></p>
+                                    <p class="ayat-arab text-right">${ayat.teksArab}</p>
+                                    <p class="text-right">${ayat.teksLatin}</p>
+                                    <p>${ayat.teksIndonesia}</p>
+                                `;
+                                ayatList.appendChild(ayatItem);
+                            }
+                        });
+                        fetch(`https://equran.id/api/v2/tafsir/${surahNumber}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                tafsirList.innerHTML = '';
+                                data.data.tafsir.forEach(tafsir => {
+                                    if (!ayatNumber || tafsir.ayat == ayatNumber) {
+                                        const tafsirItem = document.createElement('div');
+                                        tafsirItem.classList.add('tafsir', 'mb-4', 'p-2', 'bg-gray-100', 'rounded-lg');
+                                        tafsirItem.innerHTML = `
+                                            <p class="ayat-number"><strong>Ayat ${tafsir.ayat}:</strong></p>
+                                            <p class="justify-text">${tafsir.teks}</p>
+                                        `;
+                                        tafsirList.appendChild(tafsirItem);
+                                    }
+                                });
+                            })
+                            .catch(error => console.error('Error fetching tafsir:', error));
+                        surahModal.style.display = 'block';
+                    })
+                    .catch(error => console.error('Error fetching surah detail:', error));
+            }
+        });
+    </script>
+</body>
+</html>
