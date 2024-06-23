@@ -6,7 +6,6 @@
     <title>Al-Qur'an Web</title>
     <!-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrQdSmqhxUE3DhzeG5c6ljN9WZkpl9UQ/lH5RCmUjI5ZtS4jUJXx37BFxjffKioSyKjD1Fk8kgoykWAKCw==" crossorigin="anonymous" referrerpolicy="no-referrer" /> -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <style>
@@ -243,6 +242,10 @@
                                     <p class="ayat-arab text-right">${ayat.teksArab}</p>
                                     <p class="text-right">${ayat.teksLatin}</p>
                                     <p>${ayat.teksIndonesia}</p>
+                                    <audio controls>
+                                    <source src="${ayat.audio['01']}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
                                 `;
                                 ayatList.appendChild(ayatItem);
                             }
